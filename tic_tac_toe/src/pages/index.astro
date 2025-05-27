@@ -1,16 +1,255 @@
 ---
-
+const title = "TicTacToe Classic";
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>{title}</title>
+    <meta name="description" content="Minimalist TicTacToe game built with Astro." />
+    <style>
+      :root {
+        --primary: #ffffff;
+        --secondary: #000000;
+        --accent: #2196f3;
+        --cell-size: 90px;
+      }
+      body {
+        background: var(--primary);
+        color: var(--secondary);
+        min-height: 100vh;
+        font-family: system-ui, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin: 0;
+      }
+      main {
+        width: 100vw;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      h1 {
+        font-size: 2.2rem;
+        font-weight: 700;
+        margin-bottom: 0.5em;
+        letter-spacing: 0.02em;
+        color: var(--accent);
+      }
+      .turn-indicator, .game-result {
+        margin-bottom: 1.2em;
+        font-size: 1.16rem;
+        text-align: center;
+        min-height: 2em;
+        font-weight: 500;
+      }
+      .game-result {
+        font-size: 1.28rem;
+        color: var(--accent);
+        font-weight: 700;
+      }
+      .grid-container {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        margin-bottom: 1.5em;
+      }
+      .tic-grid {
+        display: grid;
+        grid-template-columns: repeat(3, var(--cell-size));
+        grid-template-rows: repeat(3, var(--cell-size));
+        gap: 0;
+        background: var(--secondary);
+        border-radius: 12px;
+        box-shadow: 0 2px 8px 0 #2196f326;
+      }
+      .grid-cell {
+        background: var(--primary);
+        color: var(--secondary);
+        border: none;
+        border-right: 1.5px solid var(--secondary);
+        border-bottom: 1.5px solid var(--secondary);
+        font-size: 2.2rem;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+        transition: background 0.11s;
+        width: var(--cell-size);
+        height: var(--cell-size);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        user-select: none;
+      }
+      .grid-cell:last-child,
+      .grid-cell:nth-child(3),
+      .grid-cell:nth-child(6),
+      .grid-cell:nth-child(9) {
+        border-right: none;
+      }
+      .grid-cell:nth-child(7),
+      .grid-cell:nth-child(8),
+      .grid-cell:nth-child(9) {
+        border-bottom: none;
+      }
+      .grid-cell:active:enabled {
+        background: #e2e8f0;
+      }
+      .grid-cell[disabled] {
+        cursor: not-allowed;
+        opacity: 0.65;
+      }
+      .reset-btn {
+        margin-top: 12px;
+        padding: 8px 32px;
+        font-size: 1rem;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        font-weight: 600;
+        letter-spacing: .05em;
+        box-shadow: 0 1px 6px 0 #2196f322;
+        transition: filter 0.09s;
+      }
+      .reset-btn:hover,
+      .reset-btn:focus {
+        filter: brightness(1.05) drop-shadow(0 0 10px #2196f37c);
+        outline: none;
+      }
+      @media (max-width: 500px) {
+        :root {
+          --cell-size: 62px;
+        }
+        h1 {
+          font-size: 1.5rem;
+        }
+        .turn-indicator, .game-result {
+          font-size: 1rem;
+        }
+        .game-result {
+          font-size: 1.1rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{title}</h1>
+      <div class="turn-indicator" id="turn-indicator" aria-live="polite"></div>
+      <div class="game-result" id="game-result" aria-live="polite"></div>
+      <div class="grid-container">
+        <div class="tic-grid" id="tic-tac-toe-grid"></div>
+      </div>
+      <button class="reset-btn" id="reset-btn" type="button">Restart Game</button>
+    </main>
+    <script type="module">
+      // PUBLIC_INTERFACE
+      /**
+       * Handles TicTacToe Classic game logic and UI rendering in Astro.
+       * Minimal, light-mode, accessible.
+       */
+      const X = "X";
+      const O = "O";
+      const EMPTY_BOARD = Array(9).fill(null);
+
+      let board = [...EMPTY_BOARD];
+      let currentPlayer = X;
+      let isGameOver = false;
+      let winner = null;
+
+      /** Winning line indices for a 3x3 grid */
+      const WIN_LINES = [
+        [0,1,2], [3,4,5], [6,7,8], // rows
+        [0,3,6], [1,4,7], [2,5,8], // columns
+        [0,4,8], [2,4,6], // diagonals
+      ];
+
+      const $grid = document.getElementById("tic-tac-toe-grid");
+      const $turnIndicator = document.getElementById("turn-indicator");
+      const $gameResult = document.getElementById("game-result");
+      const $resetBtn = document.getElementById("reset-btn");
+
+      // PUBLIC_INTERFACE
+      function renderBoard() {
+        $grid.innerHTML = "";
+        for (let i = 0; i < 9; ++i) {
+          const cell = document.createElement("button");
+          cell.className = "grid-cell";
+          cell.type = "button";
+          cell.tabIndex = 0;
+          cell.setAttribute("data-idx", i);
+          cell.ariaLabel = board[i]
+            ? `Cell ${i+1}, ${board[i]}`
+            : `Cell ${i+1}, empty`;
+          cell.textContent = board[i] || "";
+          if (isGameOver || board[i]) {
+            cell.disabled = true;
+          }
+          cell.onclick = () => handleMove(i);
+          $grid.appendChild(cell);
+        }
+      }
+
+      // PUBLIC_INTERFACE
+      function renderTurnOrResult() {
+        if (winner) {
+          $turnIndicator.textContent = "";
+          $gameResult.textContent = `Player ${winner} wins!`;
+        } else if (isGameOver) {
+          $turnIndicator.textContent = "";
+          $gameResult.textContent = "It's a draw!";
+        } else {
+          $turnIndicator.textContent = `Player ${currentPlayer}'s turn`;
+          $gameResult.textContent = "";
+        }
+      }
+
+      // PUBLIC_INTERFACE
+      function handleMove(idx) {
+        if (isGameOver || board[idx]) return;
+        board[idx] = currentPlayer;
+        if (checkWin(currentPlayer)) {
+          isGameOver = true;
+          winner = currentPlayer;
+        } else if (board.every(x => x)) {
+          isGameOver = true; // Draw
+          winner = null;
+        } else {
+          currentPlayer = currentPlayer === X ? O : X;
+        }
+        renderBoard();
+        renderTurnOrResult();
+      }
+
+      // PUBLIC_INTERFACE
+      function checkWin(player) {
+        return WIN_LINES.some(line =>
+          line.every(idx => board[idx] === player)
+        );
+      }
+
+      // PUBLIC_INTERFACE
+      function resetGame() {
+        board = [...EMPTY_BOARD];
+        currentPlayer = X;
+        winner = null;
+        isGameOver = false;
+        renderBoard();
+        renderTurnOrResult();
+      }
+
+      $resetBtn.addEventListener('click', resetGame);
+
+      // Initial rendering
+      renderBoard();
+      renderTurnOrResult();
+    </script>
+  </body>
 </html>
